@@ -1,18 +1,34 @@
-## Getting Started
+# CriptografiaVigenere
 
-Welcome to the VS Code Java world. Here is a guideline to help you get started to write Java code in Visual Studio Code.
+Este diretório contém a implementação em Java da cifra de Vigenère, um clássico da criptografia simétrica por substituição polialfabética. O código permite criptografar e descriptografar mensagens utilizando uma senha, demonstrando conceitos fundamentais da disciplina de Segurança Computacional.
 
-## Folder Structure
+## Sobre a cifra de Vigenère
 
-The workspace contains two folders by default, where:
+A cifra de Vigenère utiliza uma palavra-chave (senha) para embaralhar o texto original (mensagem), tornando a análise de frequência menos eficaz do que em cifras simples como a de César. É um exemplo importante de como a segurança de um sistema criptográfico depende tanto do algoritmo quanto do segredo compartilhado.
 
-- `src`: the folder to maintain sources
-- `lib`: the folder to maintain dependencies
+## Funcionamento do código
 
-Meanwhile, the compiled output files will be generated in the `bin` folder by default.
+O programa solicita ao usuário:
 
-> If you want to customize the folder structure, open `.vscode/settings.json` and update the related settings there.
+- A mensagem a ser criptografada ou descriptografada
+- A escolha da operação (1 para criptografar, 2 para descriptografar)
+- A senha (palavra-chave)
 
-## Dependency Management
+O usuário pode testar diferentes senhas para a mesma mensagem, observando como a escolha da chave afeta o resultado.
 
-The `JAVA PROJECTS` view allows you to manage your dependencies. More details can be found [here](https://github.com/microsoft/vscode-java-dependency#manage-dependencies).
+### Principais funções
+
+- `encriptar(mensagem, senha)`: Aplica a cifra de Vigenère para criptografar a mensagem.
+- `decriptar(mensagem, senha)`: Reverte a cifra, recuperando o texto original.
+
+O código utiliza operações de soma e subtração de caracteres, baseando-se na posição das letras no alfabeto, repetindo a senha conforme necessário.
+
+## Relação com a disciplina
+
+Este exercício permite compreender na prática:
+
+- O conceito de cifra por substituição polialfabética
+- A importância da escolha da chave
+- Limitações de cifras clássicas frente a ataques modernos
+
+Siga as instruções no terminal para criptografar ou descriptografar mensagens.
