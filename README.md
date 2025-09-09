@@ -11,6 +11,7 @@ Este repositório reúne implementações, ferramentas e materiais de apoio rela
   - `CriptografiaVigenere/`: Implementação da cifra de Vigenère.
   - `QuebraOTP/`: Ferramenta para análise e quebra de cifras OTP.
   - `QuebraVigenere/`: Ferramenta para análise e quebra da cifra de Vigenère.
+  - `SHA256/`: Implementação do algoritmo de hash SHA-256 com interface gráfica.
 
 Cada subdiretório de código possui seu próprio README com instruções detalhadas de uso.
 
