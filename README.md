@@ -8,6 +8,7 @@ Este repositório reúne implementações, ferramentas e materiais de apoio rela
   Materiais de apoio e referências, como slide.
 - `src/`  
   Códigos-fonte das implementações e ferramentas:
+  - `AES/`: Implementação do algoritmo de criptografia AES.
   - `CriptografiaVigenere/`: Implementação da cifra de Vigenère.
   - `QuebraOTP/`: Ferramenta para análise e quebra de cifras OTP.
   - `QuebraVigenere/`: Ferramenta para análise e quebra da cifra de Vigenère.
