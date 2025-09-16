@@ -4,12 +4,18 @@ Este diretório contém os códigos-fonte das implementações e ferramentas des
 
 ## Estrutura dos diretórios
 
-- `CriptografiaVigenere/`  
+- `AES/`
+  Implementação do algoritmo de criptografia AES (Advanced Encryption Standard), incluindo código-fonte e documentação.
+- `CriptografiaVigenere/`
   Implementação do algoritmo de criptografia de Vigenère, incluindo código-fonte, binários compilados e documentação.
-- `QuebraOTP/`  
+- `DiffieHellman/`
+  Implementação do protocolo Diffie-Hellman para troca segura de chaves criptográficas entre duas partes.
+- `QuebraOTP/`
   Ferramenta para análise e quebra de cifras do tipo OTP (One-Time Pad), com código-fonte e documentação.
-- `QuebraVigenere/`  
+- `QuebraVigenere/`
   Ferramenta para análise e quebra da cifra de Vigenère, com código-fonte e documentação.
+- `SHA256/`
+  Implementação do algoritmo de hash SHA-256 com interface gráfica, incluindo código-fonte e documentação.
 
 Cada subdiretório possui seu próprio README detalhando o funcionamento, uso e exemplos de execução dos respectivos módulos.
 

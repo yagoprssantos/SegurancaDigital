@@ -4,12 +4,13 @@ Este repositório reúne implementações, ferramentas e materiais de apoio rela
 
 ## Estrutura do Projeto
 
-- `docs/`  
+- `docs/`
   Materiais de apoio e referências, como slide.
-- `src/`  
+- `src/`
   Códigos-fonte das implementações e ferramentas:
   - `AES/`: Implementação do algoritmo de criptografia AES.
   - `CriptografiaVigenere/`: Implementação da cifra de Vigenère.
+  - `DiffieHellman/`: Implementação do protocolo Diffie-Hellman para troca segura de chaves.
   - `QuebraOTP/`: Ferramenta para análise e quebra de cifras OTP.
   - `QuebraVigenere/`: Ferramenta para análise e quebra da cifra de Vigenère.
   - `SHA256/`: Implementação do algoritmo de hash SHA-256 com interface gráfica.
