@@ -10,6 +10,7 @@ Este repositório reúne implementações, ferramentas e materiais de apoio rela
   Códigos-fonte das implementações e ferramentas:
   - `AES/`: Implementação do algoritmo de criptografia AES.
   - `CriptografiaVigenere/`: Implementação da cifra de Vigenère.
+  - `CrackDeSenha/`: Ferramenta educacional para demonstração de verificação/ataques de senha.
   - `DiffieHellman/`: Implementação do protocolo Diffie-Hellman para troca segura de chaves.
   - `QuebraOTP/`: Ferramenta para análise e quebra de cifras OTP.
   - `QuebraVigenere/`: Ferramenta para análise e quebra da cifra de Vigenère.

@@ -10,6 +10,8 @@ Este diretório contém os códigos-fonte das implementações e ferramentas des
   Implementação do algoritmo de criptografia de Vigenère, incluindo código-fonte, binários compilados e documentação.
 - `DiffieHellman/`
   Implementação do protocolo Diffie-Hellman para troca segura de chaves criptográficas entre duas partes.
+- `CrackDeSenha/`
+  Ferramenta educacional para demonstração de verificação/ataques de senha e técnicas de proteção.
 - `QuebraOTP/`
   Ferramenta para análise e quebra de cifras do tipo OTP (One-Time Pad), com código-fonte e documentação.
 - `QuebraVigenere/`
