@@ -1,3 +1,15 @@
+# Demo Next.js
+demo-web/node_modules/
+demo-web/.next/
+demo-web/out/
+demo-web/.turbo/
+
+# Demo Java
+demo-backend/target/
+
+# Logs/OS
+*.log
+.DS_Store
 # Compiled class files
 *.class
 
