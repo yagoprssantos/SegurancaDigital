@@ -27,6 +27,12 @@ public class ToolController {
 
     private static final Map<String, String> PASSWORD_HASHES = CrackHashes.HASH_TO_LABEL;
 
+    private static final int MAX_TEXT_LEN = 10_000;
+    private static final int MAX_PASSWORD_LEN = 256;
+    private static final int MAX_HEX_LEN = 40_000; // 20k bytes
+    private static final int MAX_BASE64_LEN = 60_000;
+    private static final int MAX_BIGINT_STR_LEN = 120;
+
     @GetMapping("/health")
     public Map<String, Object> health() {
         return Map.of("ok", true);
@@ -41,7 +47,7 @@ public class ToolController {
     @PostMapping("/aes/encrypt")
     public AesEncryptResponse aesEncrypt(@RequestBody AesEncryptRequest req) throws Exception {
         String key = requireKey16(req.key());
-        String plaintext = Objects.requireNonNullElse(req.plaintext(), "");
+        String plaintext = requireMaxLen(Objects.requireNonNullElse(req.plaintext(), ""), "plaintext", MAX_TEXT_LEN);
 
         Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
         SecretKey secretKey = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "AES");
@@ -53,7 +59,7 @@ public class ToolController {
     @PostMapping("/aes/decrypt")
     public AesDecryptResponse aesDecrypt(@RequestBody AesDecryptRequest req) throws Exception {
         String key = requireKey16(req.key());
-        String ciphertextBase64 = Objects.requireNonNullElse(req.ciphertextBase64(), "");
+        String ciphertextBase64 = requireMaxLen(Objects.requireNonNullElse(req.ciphertextBase64(), ""), "ciphertextBase64", MAX_BASE64_LEN);
 
         Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
         SecretKey secretKey = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "AES");
@@ -68,7 +74,7 @@ public class ToolController {
 
     @PostMapping("/sha256")
     public ShaResponse sha256(@RequestBody ShaRequest req) throws Exception {
-        String text = Objects.requireNonNullElse(req.text(), "");
+        String text = requireMaxLen(Objects.requireNonNullElse(req.text(), ""), "text", MAX_TEXT_LEN);
         return new ShaResponse(sha256Hex(text));
     }
 
@@ -80,15 +86,15 @@ public class ToolController {
 
     @PostMapping("/vigenere/encrypt")
     public VigenereEncryptResponse vigenereEncrypt(@RequestBody VigenereEncryptRequest req) {
-        String message = Objects.requireNonNullElse(req.message(), "");
-        String password = requireNonEmpty(req.password(), "password");
+        String message = requireMaxLen(Objects.requireNonNullElse(req.message(), ""), "message", MAX_TEXT_LEN);
+        String password = requireMaxLen(requireNonEmpty(req.password(), "password"), "password", MAX_PASSWORD_LEN);
         return new VigenereEncryptResponse(vigenereEncryptHex(message, password));
     }
 
     @PostMapping("/vigenere/decrypt")
     public VigenereDecryptResponse vigenereDecrypt(@RequestBody VigenereDecryptRequest req) {
-        String cipherHex = requireNonEmpty(req.cipherHex(), "cipherHex");
-        String password = requireNonEmpty(req.password(), "password");
+        String cipherHex = requireHexMaxLen(requireNonEmpty(req.cipherHex(), "cipherHex"), "cipherHex", MAX_HEX_LEN);
+        String password = requireMaxLen(requireNonEmpty(req.password(), "password"), "password", MAX_PASSWORD_LEN);
         return new VigenereDecryptResponse(vigenereDecryptHex(cipherHex, password));
     }
 
@@ -100,15 +106,15 @@ public class ToolController {
 
     @PostMapping("/diffie-hellman/public")
     public DhPublicResponse dhPublic(@RequestBody DhPublicRequest req) {
-        BigInteger priv = new BigInteger(requireNonEmpty(req.privateKey(), "privateKey"));
+        BigInteger priv = parseDhPrivate(requireNonEmpty(req.privateKey(), "privateKey"));
         BigInteger pub = DH_G.modPow(priv, DH_P);
         return new DhPublicResponse(pub.toString());
     }
 
     @PostMapping("/diffie-hellman/shared")
     public DhSharedResponse dhShared(@RequestBody DhSharedRequest req) {
-        BigInteger priv = new BigInteger(requireNonEmpty(req.privateKey(), "privateKey"));
-        BigInteger otherPub = new BigInteger(requireNonEmpty(req.otherPublicKey(), "otherPublicKey"));
+        BigInteger priv = parseDhPrivate(requireNonEmpty(req.privateKey(), "privateKey"));
+        BigInteger otherPub = parseDhPublic(requireNonEmpty(req.otherPublicKey(), "otherPublicKey"));
         BigInteger shared = otherPub.modPow(priv, DH_P);
         return new DhSharedResponse(shared.toString());
     }
@@ -144,6 +150,7 @@ public class ToolController {
         if (crib.isEmpty()) {
             throw new IllegalArgumentException("crib não pode ser vazio");
         }
+        requireMaxLen(crib, "crib", 256);
 
         String c1 = OTP_COLLECTION[indexA];
         String c2 = OTP_COLLECTION[indexB];
@@ -238,6 +245,47 @@ public class ToolController {
             throw new IllegalArgumentException("key deve ter exatamente 16 caracteres");
         }
         return k;
+    }
+
+    private static String requireMaxLen(String value, String field, int max) {
+        if (value == null) return "";
+        if (value.length() > max) {
+            throw new IllegalArgumentException(field + " muito grande (max " + max + ")");
+        }
+        return value;
+    }
+
+    private static String requireHexMaxLen(String hex, String field, int maxLen) {
+        requireMaxLen(hex, field, maxLen);
+        if ((hex.length() % 2) != 0) {
+            throw new IllegalArgumentException(field + " deve ter tamanho par");
+        }
+        for (int i = 0; i < hex.length(); i++) {
+            char c = hex.charAt(i);
+            boolean ok = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+            if (!ok) throw new IllegalArgumentException(field + " deve ser hexadecimal");
+        }
+        return hex;
+    }
+
+    private static BigInteger parseDhPrivate(String raw) {
+        String s = requireMaxLen(raw.trim(), "privateKey", MAX_BIGINT_STR_LEN);
+        if (s.startsWith("+")) s = s.substring(1);
+        if (!s.matches("\\d+")) throw new IllegalArgumentException("privateKey deve ser um inteiro positivo");
+        BigInteger v = new BigInteger(s);
+        if (v.signum() <= 0) throw new IllegalArgumentException("privateKey deve ser > 0");
+        if (v.compareTo(DH_P) >= 0) throw new IllegalArgumentException("privateKey deve ser < p");
+        return v;
+    }
+
+    private static BigInteger parseDhPublic(String raw) {
+        String s = requireMaxLen(raw.trim(), "otherPublicKey", MAX_BIGINT_STR_LEN);
+        if (s.startsWith("+")) s = s.substring(1);
+        if (!s.matches("\\d+")) throw new IllegalArgumentException("otherPublicKey deve ser um inteiro positivo");
+        BigInteger v = new BigInteger(s);
+        if (v.signum() <= 0) throw new IllegalArgumentException("otherPublicKey deve ser > 0");
+        if (v.compareTo(DH_P) >= 0) throw new IllegalArgumentException("otherPublicKey deve ser < p");
+        return v;
     }
 
     private static String requireNonEmpty(String value, String field) {

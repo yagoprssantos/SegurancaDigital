@@ -4,7 +4,7 @@ COPY pom.xml ./
 COPY src ./src
 RUN ./mvnw -v >/dev/null 2>&1 || true
 RUN apk add --no-cache maven
-RUN mvn -q -DskipTests package
+RUN mvn -q -DskipTests package spring-boot:repackage
 
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
