@@ -23,9 +23,22 @@ public class ToolController {
 
     private static final String VIGENERE_BREAK_CIPHER_HEX = QuebraVigenereCipher.CIPHER_HEX;
 
+    private static final byte[] VIGENERE_BREAK_CIPHER_BYTES = decodeHexStrict(VIGENERE_BREAK_CIPHER_HEX);
+
     private static final String[] OTP_COLLECTION = QuebraOtpData.COLLECTION;
 
     private static final Map<String, String> PASSWORD_HASHES = CrackHashes.HASH_TO_LABEL;
+
+    private static final Base64.Encoder B64_ENCODER = Base64.getEncoder();
+    private static final Base64.Decoder B64_DECODER = Base64.getDecoder();
+
+    private static final ThreadLocal<MessageDigest> SHA256 = ThreadLocal.withInitial(() -> {
+        try {
+            return MessageDigest.getInstance("SHA-256");
+        } catch (Exception e) {
+            throw new IllegalStateException("SHA-256 indisponível", e);
+        }
+    });
 
     private static final int MAX_TEXT_LEN = 10_000;
     private static final int MAX_PASSWORD_LEN = 256;
@@ -38,6 +51,11 @@ public class ToolController {
         return Map.of("ok", true);
     }
 
+    @GetMapping("/")
+    public Map<String, Object> root() {
+        return Map.of("ok", true);
+    }
+
     // AES
     public record AesEncryptRequest(String plaintext, String key) {}
     public record AesEncryptResponse(String ciphertextBase64) {}
@@ -46,25 +64,28 @@ public class ToolController {
 
     @PostMapping("/aes/encrypt")
     public AesEncryptResponse aesEncrypt(@RequestBody AesEncryptRequest req) throws Exception {
-        String key = requireKey16(req.key());
+        byte[] keyBytes = requireAesKeyBytes(req.key());
         String plaintext = requireMaxLen(Objects.requireNonNullElse(req.plaintext(), ""), "plaintext", MAX_TEXT_LEN);
 
         Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
-        SecretKey secretKey = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "AES");
+        SecretKey secretKey = new SecretKeySpec(keyBytes, "AES");
         cipher.init(Cipher.ENCRYPT_MODE, secretKey, new IvParameterSpec(AES_IV));
         byte[] out = cipher.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));
-        return new AesEncryptResponse(Base64.getEncoder().encodeToString(out));
+        return new AesEncryptResponse(B64_ENCODER.encodeToString(out));
     }
 
     @PostMapping("/aes/decrypt")
     public AesDecryptResponse aesDecrypt(@RequestBody AesDecryptRequest req) throws Exception {
-        String key = requireKey16(req.key());
+        byte[] keyBytes = requireAesKeyBytes(req.key());
         String ciphertextBase64 = requireMaxLen(Objects.requireNonNullElse(req.ciphertextBase64(), ""), "ciphertextBase64", MAX_BASE64_LEN);
+        if (ciphertextBase64.trim().isEmpty()) {
+            throw new IllegalArgumentException("ciphertextBase64 não pode ser vazio");
+        }
 
         Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
-        SecretKey secretKey = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "AES");
+        SecretKey secretKey = new SecretKeySpec(keyBytes, "AES");
         cipher.init(Cipher.DECRYPT_MODE, secretKey, new IvParameterSpec(AES_IV));
-        byte[] out = cipher.doFinal(Base64.getDecoder().decode(ciphertextBase64));
+        byte[] out = cipher.doFinal(B64_DECODER.decode(ciphertextBase64));
         return new AesDecryptResponse(new String(out, StandardCharsets.UTF_8));
     }
 
@@ -130,7 +151,7 @@ public class ToolController {
             throw new IllegalArgumentException("keyLength deve estar entre 3 e 12");
         }
 
-        String key = guessVigenereKeyBySpaceFrequency(VIGENERE_BREAK_CIPHER_HEX, length);
+        String key = guessVigenereKeyBySpaceFrequency(VIGENERE_BREAK_CIPHER_BYTES, length);
         String plaintextGuess = vigenereDecryptHex(VIGENERE_BREAK_CIPHER_HEX, key);
         return new QuebraVigenereResponse(key, plaintextGuess, VIGENERE_BREAK_CIPHER_HEX);
     }
@@ -147,25 +168,26 @@ public class ToolController {
             throw new IllegalArgumentException("indexA/indexB fora do intervalo 0.." + (OTP_COLLECTION.length - 1));
         }
         String crib = Objects.requireNonNullElse(req.crib(), "");
-        if (crib.isEmpty()) {
+        if (crib.trim().isEmpty()) {
             throw new IllegalArgumentException("crib não pode ser vazio");
         }
-        requireMaxLen(crib, "crib", 256);
+        crib = requireMaxLen(crib, "crib", 256);
 
         String c1 = OTP_COLLECTION[indexA];
         String c2 = OTP_COLLECTION[indexB];
         int maxBytes = Math.min(c1.length(), c2.length()) / 2;
-        if (crib.length() > maxBytes) {
+        byte[] cribBytes = crib.getBytes(StandardCharsets.UTF_8);
+        if (cribBytes.length > maxBytes) {
             throw new IllegalArgumentException("crib muito grande para os criptogramas escolhidos");
         }
 
-        byte[] xor = new byte[crib.length()];
-        byte[] cribBytes = crib.getBytes(StandardCharsets.UTF_8);
-        byte[] derived = new byte[crib.length()];
+        int n = cribBytes.length;
+        byte[] xor = new byte[n];
+        byte[] derived = new byte[n];
 
-        for (int i = 0; i < crib.length(); i++) {
-            int b1 = Integer.parseInt(c1.substring(2 * i, 2 * (i + 1)), 16);
-            int b2 = Integer.parseInt(c2.substring(2 * i, 2 * (i + 1)), 16);
+        for (int i = 0; i < n; i++) {
+            int b1 = hexByteAt(c1, i);
+            int b2 = hexByteAt(c2, i);
             xor[i] = (byte) (b1 ^ b2);
             derived[i] = (byte) (cribBytes[i] ^ b1 ^ b2);
         }
@@ -239,12 +261,16 @@ public class ToolController {
     }
 
     // Helpers
-    private static String requireKey16(String key) {
+    private static byte[] requireAesKeyBytes(String key) {
         String k = requireNonEmpty(key, "key");
         if (k.length() != 16) {
             throw new IllegalArgumentException("key deve ter exatamente 16 caracteres");
         }
-        return k;
+        byte[] bytes = k.getBytes(StandardCharsets.UTF_8);
+        if (bytes.length != 16) {
+            throw new IllegalArgumentException("key deve ter 16 caracteres ASCII (16 bytes em UTF-8)");
+        }
+        return bytes;
     }
 
     private static String requireMaxLen(String value, String field, int max) {
@@ -296,7 +322,8 @@ public class ToolController {
     }
 
     private static String sha256Hex(String text) throws Exception {
-        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        MessageDigest digest = SHA256.get();
+        digest.reset();
         byte[] out = digest.digest(text.getBytes(StandardCharsets.UTF_8));
         return toHex(out);
     }
@@ -328,27 +355,26 @@ public class ToolController {
         if ((cipherHex.length() % 2) != 0) {
             throw new IllegalArgumentException("cipherHex deve ter tamanho par");
         }
-        StringBuilder out = new StringBuilder(cipherHex.length() / 2);
-        for (int i = 0; i < cipherHex.length(); i += 2) {
-            int c = Integer.parseInt(cipherHex.substring(i, i + 2), 16);
-            int p = password.charAt((i / 2) % password.length());
+        int bytesLen = cipherHex.length() / 2;
+        StringBuilder out = new StringBuilder(bytesLen);
+        for (int i = 0; i < bytesLen; i++) {
+            int c = hexByteAt(cipherHex, i);
+            int p = password.charAt(i % password.length());
             int m = (c ^ p);
             out.append((char) m);
         }
         return out.toString();
     }
 
-    private static String guessVigenereKeyBySpaceFrequency(String cipherHex, int keyLength) {
+    private static String guessVigenereKeyBySpaceFrequency(byte[] cipherBytes, int keyLength) {
         StringBuilder key = new StringBuilder(keyLength);
 
         for (int pos = 0; pos < keyLength; pos++) {
             int[] freq = new int[256];
 
-            for (int i = 0; i < cipherHex.length(); i += 2) {
-                int byteIndex = (i / 2);
+            for (int byteIndex = 0; byteIndex < cipherBytes.length; byteIndex++) {
                 if ((byteIndex % keyLength) == pos) {
-                    int b = Integer.parseInt(cipherHex.substring(i, i + 2), 16);
-                    freq[b]++;
+                    freq[cipherBytes[byteIndex] & 0xff]++;
                 }
             }
 
@@ -365,6 +391,35 @@ public class ToolController {
         }
 
         return key.toString();
+    }
+
+    private static byte[] decodeHexStrict(String hex) {
+        if ((hex.length() % 2) != 0) {
+            throw new IllegalArgumentException("hex deve ter tamanho par");
+        }
+        int len = hex.length() / 2;
+        byte[] out = new byte[len];
+        for (int i = 0; i < len; i++) {
+            out[i] = (byte) hexByteAt(hex, i);
+        }
+        return out;
+    }
+
+    private static int hexByteAt(String hex, int byteIndex) {
+        int i = byteIndex * 2;
+        if (i + 1 >= hex.length()) {
+            throw new IllegalArgumentException("hex fora do intervalo");
+        }
+        int hi = hexValue(hex.charAt(i));
+        int lo = hexValue(hex.charAt(i + 1));
+        return (hi << 4) | lo;
+    }
+
+    private static int hexValue(char c) {
+        if (c >= '0' && c <= '9') return c - '0';
+        if (c >= 'a' && c <= 'f') return 10 + (c - 'a');
+        if (c >= 'A' && c <= 'F') return 10 + (c - 'A');
+        throw new IllegalArgumentException("hex inválido");
     }
 
     private static final class QuebraVigenereCipher {

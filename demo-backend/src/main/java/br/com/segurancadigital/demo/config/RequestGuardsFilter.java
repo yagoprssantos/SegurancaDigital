@@ -99,9 +99,14 @@ public class RequestGuardsFilter extends OncePerRequestFilter {
     private void writeError(HttpServletResponse response, int status, String error, String message, String path)
             throws IOException {
         response.setStatus(status);
+        if (status == 429) {
+            // best-effort hint; clients may back off
+            response.setHeader("Retry-After", "60");
+        }
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
         Map<String, Object> body = Map.of(
+            "status", status,
                 "error", error,
                 "message", message,
                 "path", path,

@@ -32,8 +32,10 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> internal(Exception ex, HttpServletRequest req) {
+        // Print stacktrace so container logs contain the root cause for diagnostics
+        ex.printStackTrace();
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(error(HttpStatus.INTERNAL_SERVER_ERROR, "internal", "Erro interno", req));
+            .body(error(HttpStatus.INTERNAL_SERVER_ERROR, "internal", "Erro interno", req));
     }
 
     private static Map<String, Object> error(HttpStatus status, String code, String message, HttpServletRequest req) {
