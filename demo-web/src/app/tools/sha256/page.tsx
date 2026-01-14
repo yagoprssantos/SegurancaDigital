@@ -1,66 +1,185 @@
-"use client";
+'use client';
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from 'react';
 
-import { apiPost } from "@/lib/api";
+import {
+  ErrorBanner,
+  HowItWorks,
+  PrimaryButton,
+  SecondaryButton,
+  ToolCard,
+  ToolField,
+  ToolModeSwitch,
+  ToolTextarea,
+  usePersistentToolMode,
+} from '@/components/tool-kit';
+import { apiPost } from '@/lib/api';
+import { toHex, utf8ToBytes } from '@/lib/bytes';
 
 type ShaResponse = { hashHex: string };
 
 export default function Sha256Page() {
-  const [text, setText] = useState("Olá mundo");
-  const [hashHex, setHashHex] = useState("");
+  const [mode, setMode] = usePersistentToolMode();
+  const [text, setText] = useState('Olá mundo');
+  const [hashHex, setHashHex] = useState('');
+  const [clientHashHex, setClientHashHex] = useState<string | null>(null);
+  const [clientBusy, setClientBusy] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const textBytes = useMemo(() => utf8ToBytes(text ?? ''), [text]);
+
+  useEffect(() => {
+    if (mode !== 'debug') return;
+    let cancelled = false;
+
+    async function calc() {
+      try {
+        setClientBusy(true);
+        const digest = await crypto.subtle.digest(
+          'SHA-256',
+          textBytes as unknown as BufferSource
+        );
+        const bytes = new Uint8Array(digest);
+        if (!cancelled) setClientHashHex(toHex(bytes));
+      } catch {
+        if (!cancelled) setClientHashHex(null);
+      } finally {
+        if (!cancelled) setClientBusy(false);
+      }
+    }
+
+    calc();
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, textBytes]);
+
+  async function hashClient() {
+    setClientBusy(true);
+    try {
+      const digest = await crypto.subtle.digest(
+        'SHA-256',
+        textBytes as unknown as BufferSource
+      );
+      setClientHashHex(toHex(new Uint8Array(digest)));
+    } catch {
+      setClientHashHex(null);
+    } finally {
+      setClientBusy(false);
+    }
+  }
 
   async function run() {
     setBusy(true);
     setError(null);
     try {
-      const out = await apiPost<ShaResponse>("/sha256", { text });
+      const out = await apiPost<ShaResponse>('/sha256', { text });
       setHashHex(out.hashHex);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Erro inesperado");
+      setError(e instanceof Error ? e.message : 'Erro inesperado');
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-6 sm:gap-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">SHA-256</h1>
-        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">Gera hash SHA-256 em hexadecimal.</p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-3xl font-semibold tracking-tight">SHA-256</h1>
+          <ToolModeSwitch mode={mode} onChange={setMode} />
+        </div>
+        <p className="mt-2 text-base leading-relaxed text-zinc-300">
+          Gera hash SHA-256 em hexadecimal.
+        </p>
       </div>
 
-      <div className="grid gap-4 rounded-3xl border border-black/10 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-900">
-        <label className="grid gap-2">
-          <span className="text-sm font-medium">Texto</span>
-          <textarea
+      <HowItWorks
+        mode={mode}
+        steps={[
+          'Converta o texto para bytes (UTF-8).',
+          'Aplique padding e divida em blocos de 512 bits.',
+          'Inicialize os registradores (H0..H7).',
+          'Para cada bloco: expanda a mensagem (W0..W63) e rode 64 rounds de compressão.',
+          'Ao final, concatene H0..H7 e imprima em hexadecimal.',
+        ]}
+        debugCode={`// Pseudocódigo (alto nível)\nbytes = utf8(text)\nblocks = pad_512(bytes)\nH = IV\nfor block in blocks:\n  W = message_schedule(block)\n  (a..h) = H\n  for i in 0..63:\n    T1 = h + Σ1(e) + Ch(e,f,g) + K[i] + W[i]\n    T2 = Σ0(a) + Maj(a,b,c)\n    h=g; g=f; f=e; e=d+T1; d=c; c=b; b=a; a=T1+T2\n  H = H + (a..h)\nhex = toHex(H)`}
+        debugExtras={
+          <div className="grid gap-3">
+            <div className="grid gap-1 text-sm">
+              <div className="text-zinc-200">Bytes (UTF-8 → hex)</div>
+              <div className="font-mono text-xs text-zinc-300">
+                {toHex(textBytes)} ({textBytes.length} bytes)
+              </div>
+            </div>
+            <div className="grid gap-1 text-sm">
+              <div className="text-zinc-200">Hash no browser (Web Crypto)</div>
+              <div className="font-mono text-xs text-zinc-300">
+                {clientBusy
+                  ? 'calculando…'
+                  : clientHashHex
+                  ? clientHashHex
+                  : 'indisponível'}
+              </div>
+              {clientHashHex && hashHex && (
+                <div className="text-xs text-zinc-400">
+                  {clientHashHex === hashHex
+                    ? 'Bate com o backend.'
+                    : 'Diferente do backend (confira entrada).'}
+                </div>
+              )}
+            </div>
+          </div>
+        }
+      />
+
+      <ToolCard>
+        <ToolField
+          label="Texto"
+          debugInfo={mode === 'debug' ? `${textBytes.length} bytes` : undefined}
+        >
+          <ToolTextarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            className="min-h-28 rounded-xl border border-black/10 bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 dark:border-white/10"
           />
-        </label>
+        </ToolField>
 
-        <button
-          disabled={busy}
-          onClick={run}
-          className="w-fit rounded-full bg-zinc-900 px-5 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-zinc-950"
+        <div className="flex gap-3">
+          <PrimaryButton
+            loading={busy}
+            disabled={busy}
+            onClick={run}
+            className="w-fit"
+          >
+            Gerar hash (backend)
+          </PrimaryButton>
+          <SecondaryButton
+            loading={clientBusy}
+            disabled={clientBusy}
+            onClick={hashClient}
+          >
+            Calcular (no navegador)
+          </SecondaryButton>
+        </div>
+
+        <ToolField
+          label="Hash (hex)"
+          debugInfo={
+            mode === 'debug' && hashHex
+              ? `${hashHex.length / 2} bytes`
+              : undefined
+          }
         >
-          Gerar hash
-        </button>
-
-        <label className="grid gap-2">
-          <span className="text-sm font-medium">Hash (hex)</span>
           <input
             readOnly
             value={hashHex}
-            className="h-11 rounded-xl border border-black/10 bg-transparent px-3 font-mono text-xs outline-none dark:border-white/10"
+            className="h-12 rounded-xl border border-white/10 bg-transparent px-3 font-mono text-xs text-zinc-100 outline-none"
           />
-        </label>
+        </ToolField>
 
-        {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-200">{error}</div>}
-      </div>
+        {error && <ErrorBanner message={error} />}
+      </ToolCard>
     </div>
   );
 }

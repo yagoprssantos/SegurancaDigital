@@ -1,109 +1,172 @@
-"use client";
+'use client';
 
-import { useState } from "react";
+import { useMemo, useState } from 'react';
 
-import { apiPost } from "@/lib/api";
+import {
+  ErrorBanner,
+  HowItWorks,
+  PrimaryButton,
+  ToolCard,
+  ToolField,
+  ToolInput,
+  ToolModeSwitch,
+  ToolTextarea,
+  usePersistentToolMode,
+} from '@/components/tool-kit';
+import { apiPost } from '@/lib/api';
+import { fromHex, toHex, utf8ToBytes } from '@/lib/bytes';
 
 type BreakOtpResponse = { xorHex: string; cribHex: string; hint: string };
 
 export default function QuebraOtpPage() {
+  const [mode, setMode] = usePersistentToolMode();
   const [indexA, setIndexA] = useState(0);
   const [indexB, setIndexB] = useState(1);
-  const [crib, setCrib] = useState(" the ");
+  const [crib, setCrib] = useState(' the ');
   const [result, setResult] = useState<BreakOtpResponse | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const cribBytes = useMemo(() => utf8ToBytes(crib ?? ''), [crib]);
+  const cribHexPreview = useMemo(() => toHex(cribBytes), [cribBytes]);
+  const derivedPreview = useMemo(() => {
+    if (mode !== 'debug') return null;
+    if (!result) return null;
+    try {
+      const xorBytes = fromHex(result.xorHex);
+      const n = Math.min(xorBytes.length, cribBytes.length);
+      const derived = new Uint8Array(n);
+      for (let i = 0; i < n; i++) derived[i] = xorBytes[i] ^ cribBytes[i];
+      const derivedText = new TextDecoder('iso-8859-1').decode(derived);
+      return { derivedText, derivedHex: toHex(derived) };
+    } catch {
+      return null;
+    }
+  }, [mode, result, cribBytes]);
 
   async function run() {
     setBusy(true);
     setError(null);
     try {
-      const out = await apiPost<BreakOtpResponse>("/quebra-otp/run", {
+      const out = await apiPost<BreakOtpResponse>('/quebra-otp/run', {
         indexA,
         indexB,
         crib,
       });
       setResult(out);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Erro inesperado");
+      setError(e instanceof Error ? e.message : 'Erro inesperado');
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-6 sm:gap-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Quebra OTP reutilizado (hardcoded)</h1>
-        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
-          Selecione 2 criptogramas hardcoded e teste um berço (crib). O backend retorna XOR e o crib em hex.
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-3xl font-semibold tracking-tight">
+            Quebra OTP reutilizado (hardcoded)
+          </h1>
+          <ToolModeSwitch mode={mode} onChange={setMode} />
+        </div>
+        <p className="mt-2 text-base leading-relaxed text-zinc-300">
+          Selecione 2 criptogramas hardcoded e teste um berço (crib). O backend
+          retorna XOR e o crib em hex.
         </p>
       </div>
 
-      <div className="grid gap-4 rounded-3xl border border-black/10 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-900">
+      <HowItWorks
+        mode={mode}
+        steps={[
+          'Pegue dois criptogramas C1 e C2 que foram cifrados com a mesma OTP (erro clássico).',
+          'Compute XOR: X = C1 XOR C2 = P1 XOR P2 (o key stream cancela).',
+          "Escolha um 'crib' (pedaço provável de texto) e alinhe em uma posição.",
+          'Então você deriva um pedaço do outro plaintext: P2 = X XOR crib (ou P1, dependendo do alinhamento).',
+          'Repita mudando crib/posições até encontrar texto legível.',
+        ]}
+        debugCode={`// Ideia central\nX = C1 XOR C2\n\n// Se você chuta que P1 contém crib em certo offset:\nP2_segment = X_segment XOR crib\n\n// No backend do demo (para os primeiros N bytes):\nderived[i] = crib[i] ^ c1[i] ^ c2[i]\n// e como xor[i] = c1[i] ^ c2[i], então:\nderived[i] = crib[i] ^ xor[i]`}
+        debugExtras={
+          <div className="grid gap-3">
+            <div className="grid gap-1 text-sm">
+              <div className="text-zinc-200">Crib (UTF-8 → hex)</div>
+              <div className="font-mono text-xs text-zinc-300">
+                {cribHexPreview} ({cribBytes.length} bytes)
+              </div>
+            </div>
+            {result && (
+              <div className="grid gap-1 text-sm">
+                <div className="text-zinc-200">
+                  Derivado no client (derived = crib XOR xor)
+                </div>
+                <div className="text-xs text-zinc-400">
+                  {derivedPreview ? derivedPreview.derivedText : '—'}
+                </div>
+                {derivedPreview && (
+                  <div className="font-mono text-xs text-zinc-300">
+                    {derivedPreview.derivedHex}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        }
+      />
+
+      <ToolCard loading={busy}>
         <div className="grid gap-4 md:grid-cols-3">
-          <label className="grid gap-2">
-            <span className="text-sm font-medium">Índice A</span>
-            <input
+          <ToolField label="Índice A">
+            <ToolInput
               type="number"
               min={0}
               value={indexA}
               onChange={(e) => setIndexA(Number(e.target.value))}
-              className="h-11 rounded-xl border border-black/10 bg-transparent px-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500 dark:border-white/10"
             />
-          </label>
-          <label className="grid gap-2">
-            <span className="text-sm font-medium">Índice B</span>
-            <input
+          </ToolField>
+          <ToolField label="Índice B">
+            <ToolInput
               type="number"
               min={0}
               value={indexB}
               onChange={(e) => setIndexB(Number(e.target.value))}
-              className="h-11 rounded-xl border border-black/10 bg-transparent px-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500 dark:border-white/10"
             />
-          </label>
-          <label className="grid gap-2">
-            <span className="text-sm font-medium">Crib (ASCII)</span>
-            <input
-              value={crib}
-              onChange={(e) => setCrib(e.target.value)}
-              className="h-11 rounded-xl border border-black/10 bg-transparent px-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500 dark:border-white/10"
-            />
-          </label>
+          </ToolField>
+          <ToolField label="Crib (ASCII/UTF-8)">
+            <ToolInput value={crib} onChange={(e) => setCrib(e.target.value)} />
+          </ToolField>
         </div>
 
-        <button
+        <PrimaryButton
+          loading={busy}
           disabled={busy}
           onClick={run}
-          className="w-fit rounded-full bg-zinc-900 px-5 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-zinc-950"
+          className="w-fit"
         >
-          Rodar XOR + crib
-        </button>
+          Rodar XOR + crib (backend)
+        </PrimaryButton>
 
         {result && (
           <div className="grid gap-3">
-            <div className="text-sm text-zinc-600 dark:text-zinc-300">{result.hint}</div>
-            <label className="grid gap-2">
-              <span className="text-sm font-medium">XOR (hex)</span>
-              <textarea
+            <div className="text-sm text-zinc-300">{result.hint}</div>
+            <ToolField label="XOR (hex)">
+              <ToolTextarea
                 readOnly
                 value={result.xorHex}
-                className="min-h-24 rounded-xl border border-black/10 bg-transparent px-3 py-2 font-mono text-xs outline-none dark:border-white/10"
+                className="min-h-24 font-mono text-xs"
               />
-            </label>
-            <label className="grid gap-2">
-              <span className="text-sm font-medium">Crib (hex)</span>
-              <textarea
+            </ToolField>
+            <ToolField label="Crib (hex)">
+              <ToolTextarea
                 readOnly
                 value={result.cribHex}
-                className="min-h-16 rounded-xl border border-black/10 bg-transparent px-3 py-2 font-mono text-xs outline-none dark:border-white/10"
+                className="min-h-16 font-mono text-xs"
               />
-            </label>
+            </ToolField>
           </div>
         )}
 
-        {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-200">{error}</div>}
-      </div>
+        {error && <ErrorBanner message={error} />}
+      </ToolCard>
     </div>
   );
 }

@@ -1,33 +1,37 @@
-import Link from "next/link";
+import Link from 'next/link';
+import { FiGithub, FiZap } from 'react-icons/fi';
 
-import { tools } from "@/lib/tools";
+import { tools } from '@/lib/tools';
 
 export default function Home() {
   return (
-    <div className="grid gap-10">
-      <section className="rounded-3xl border border-black/10 bg-white p-8 shadow-sm dark:border-white/10 dark:bg-zinc-900">
-        <div className="max-w-3xl">
-          <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
+    <div className="grid gap-10 sm:gap-12">
+      <section className="rounded-3xl border border-white/10 bg-white/5 p-6 sm:p-8">
+        <div className="max-w-4xl">
+          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
             Segurança Digital — Demo interativa
           </h1>
-          <p className="mt-3 text-base leading-7 text-zinc-600 dark:text-zinc-300">
-            Uma interface web para testar, visualizar e demonstrar os algoritmos do repositório
-            sem precisar abrir o código. O backend é Java (stateless) e os exemplos de algumas
-            ferramentas permanecem hardcoded, como no projeto original.
+          <p className="mt-4 text-lg leading-8 text-zinc-300">
+            Uma interface web para testar, visualizar e demonstrar os algoritmos
+            do repositório sem precisar abrir o código. O backend é Java
+            (stateless) e os exemplos de algumas ferramentas permanecem
+            hardcoded, como no projeto original.
           </p>
-          <div className="mt-6 flex flex-wrap gap-3">
+          <div className="mt-8 flex flex-col gap-4 sm:flex-row">
             <Link
               href="/tools"
-              className="rounded-full bg-zinc-900 px-5 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100"
+              className="flex items-center justify-center gap-2 rounded-full bg-amber-400 px-8 py-3 text-center text-sm font-semibold text-zinc-950 transition hover:bg-amber-300"
             >
+              <FiZap size={18} />
               Abrir ferramentas
             </Link>
             <a
               href="https://github.com/yagoprssantos/SegurancaDigital"
               target="_blank"
               rel="noreferrer"
-              className="rounded-full border border-black/10 bg-white px-5 py-2 text-sm font-medium hover:bg-black/5 dark:border-white/10 dark:bg-zinc-900 dark:hover:bg-white/10"
+              className="flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 px-8 py-3 text-center text-sm font-medium text-zinc-100 transition hover:bg-white/10"
             >
+              <FiGithub size={18} />
               Ver repositório
             </a>
           </div>
@@ -35,26 +39,29 @@ export default function Home() {
       </section>
 
       <section>
-        <div className="mb-4 flex items-end justify-between">
-          <h2 className="text-lg font-semibold tracking-tight">Destaques</h2>
-          <Link href="/tools" className="text-sm text-indigo-600 hover:underline dark:text-indigo-300">
-            Ver todas
+        <div className="mb-6 flex items-end justify-between">
+          <h2 className="text-2xl font-bold tracking-tight">Destaques</h2>
+          <Link
+            href="/tools"
+            className="text-sm font-medium text-amber-300 hover:underline"
+          >
+            Ver todas →
           </Link>
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {tools.slice(0, 4).map((t) => (
             <Link
               key={t.href}
               href={t.href}
-              className="group rounded-2xl border border-black/10 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-white/10 dark:bg-zinc-900"
+              className="group rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:bg-white/10"
             >
               <div className="flex items-center justify-between">
-                <div className="text-sm font-semibold">{t.title}</div>
-                <div className="text-xs text-zinc-500 group-hover:text-zinc-700 dark:group-hover:text-zinc-300">
+                <div className="text-base font-semibold">{t.title}</div>
+                <div className="text-xs text-zinc-400 group-hover:text-zinc-200">
                   Abrir →
                 </div>
               </div>
-              <div className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{t.description}</div>
+              <div className="mt-3 text-sm text-zinc-300">{t.description}</div>
             </Link>
           ))}
         </div>
@@ -62,4 +69,3 @@ export default function Home() {
     </div>
   );
 }
-

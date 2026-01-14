@@ -1,22 +1,23 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import type { Metadata } from 'next';
+import { Geist, Geist_Mono } from 'next/font/google';
+import './globals.css';
 
-import { AppShell } from "@/components/app-shell";
+import { AppShell } from '@/components/app-shell';
 
 const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+  variable: '--font-geist-sans',
+  subsets: ['latin'],
 });
 
 const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  variable: '--font-geist-mono',
+  subsets: ['latin'],
 });
 
 export const metadata: Metadata = {
-  title: "Segurança Digital — Demo",
-  description: "Demonstração interativa (Next.js + Java) das ferramentas do repositório.",
+  title: 'Segurança Digital — Demo',
+  description:
+    'Demonstração interativa (Next.js + Java) das ferramentas do repositório.',
 };
 
 export default function RootLayout({
@@ -25,8 +26,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" className="dark">
       <body
+        suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AppShell>{children}</AppShell>

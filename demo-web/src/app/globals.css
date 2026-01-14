@@ -1,8 +1,8 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #09090b;
+  --foreground: #fafafa;
 }
 
 @theme inline {
@@ -12,15 +12,66 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+}
+
+/* Animation helpers and spinner */
+@keyframes sd-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.sd-spinner {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  border-top-color: rgba(250, 204, 21, 1); /* amber */
+  animation: sd-spin 0.9s linear infinite;
+}
+
+.sd-fade {
+  transition: opacity 260ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.sd-smooth {
+  transition: background-color 220ms ease, color 220ms ease,
+    box-shadow 220ms ease;
+}
+
+/* Improved responsive touch-friendly sizing */
+input[type='text'],
+input[type='number'],
+input[type='password'],
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* reduce motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .sd-fade,
+  .sd-smooth {
+    transition: none !important;
+  }
+  .sd-spinner {
+    animation: none !important;
+  }
+}
+
+/* larger touch targets on small screens */
+@media (max-width: 640px) {
+  .h-touch {
+    height: 3.25rem;
+  } /* 52px */
+  .min-h-touch {
+    min-height: 6rem;
+  }
 }

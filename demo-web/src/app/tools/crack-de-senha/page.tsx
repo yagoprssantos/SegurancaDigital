@@ -1,123 +1,181 @@
-"use client";
+'use client';
 
-import { useState } from "react";
+import { useMemo, useState } from 'react';
 
-import { apiPost } from "@/lib/api";
+import {
+  ErrorBanner,
+  HowItWorks,
+  PrimaryButton,
+  SecondaryButton,
+  ToolCard,
+  ToolField,
+  ToolInput,
+  ToolModeSwitch,
+  usePersistentToolMode,
+} from '@/components/tool-kit';
+import { apiPost } from '@/lib/api';
 
 type CrackResponse = {
-  mode: "numeric" | "alpha";
+  mode: 'numeric' | 'alpha';
   tried: number;
   matches: Array<{ hash: string; password: string }>;
   note: string;
 };
 
 export default function CrackDeSenhaPage() {
-  const [mode, setMode] = useState<"numeric" | "alpha">("numeric");
+  const [modeUi, setModeUi] = usePersistentToolMode();
+  const [mode, setMode] = useState<'numeric' | 'alpha'>('numeric');
   const [maxAlphaLen, setMaxAlphaLen] = useState(4);
   const [numericMax, setNumericMax] = useState(250000);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CrackResponse | null>(null);
 
+  const estimatedTries = useMemo(() => {
+    if (mode === 'numeric') return Math.max(0, Math.floor(numericMax)) + 1;
+    const maxLen = Math.max(1, Math.min(5, Math.floor(maxAlphaLen)));
+    let total = 0;
+    for (let len = 1; len <= maxLen; len++) total += Math.pow(26, len);
+    return total;
+  }, [mode, numericMax, maxAlphaLen]);
+
   async function run() {
     setBusy(true);
     setError(null);
     setResult(null);
     try {
-      const out = await apiPost<CrackResponse>("/crack-de-senha/run", {
+      const out = await apiPost<CrackResponse>('/crack-de-senha/run', {
         mode,
         maxAlphaLen,
         numericMax,
       });
       setResult(out);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Erro inesperado");
+      setError(e instanceof Error ? e.message : 'Erro inesperado');
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-6 sm:gap-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Crack de Senhas (hardcoded)</h1>
-        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
-          O backend usa a lista hardcoded de hashes do projeto. Para rodar em ambiente serverless, apliquei limites.
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-3xl font-semibold tracking-tight">
+            Crack de Senhas (hardcoded)
+          </h1>
+          <ToolModeSwitch mode={modeUi} onChange={setModeUi} />
+        </div>
+        <p className="mt-2 text-base leading-relaxed text-zinc-300">
+          O backend usa a lista hardcoded de hashes do projeto. Para rodar em
+          ambiente serverless, apliquei limites.
         </p>
       </div>
 
-      <div className="grid gap-4 rounded-3xl border border-black/10 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-900">
+      <HowItWorks
+        mode={modeUi}
+        steps={[
+          'Escolha um modo de geração de candidatos (numérico ou alfabético).',
+          'Para cada candidato, calcule SHA-256 e compare com a lista hardcoded de hashes conhecidos.',
+          'Se bater, o backend registra a senha encontrada.',
+          'O demo aplica limites para manter o tempo de execução razoável.',
+        ]}
+        debugCode={`// Pseudocódigo\nfor guess in guesses:\n  hash = sha256(guess)\n  if hash in KNOWN_HASHES: matches.add(guess)`}
+        debugExtras={
+          <div className="grid gap-2 text-sm">
+            <div className="text-zinc-200">
+              Estimativa de tentativas (client)
+            </div>
+            <div className="font-mono text-xs text-zinc-300">
+              {estimatedTries.toLocaleString('pt-BR')}
+            </div>
+            <div className="text-xs text-zinc-400">
+              {mode === 'numeric'
+                ? 'N+1 tentativas (inclui 0).'
+                : 'Soma de 26^len para len=1..max.'}
+            </div>
+          </div>
+        }
+      />
+
+      <ToolCard loading={busy}>
         <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => setMode("numeric")}
-            className={`rounded-full px-4 py-2 text-sm font-medium ${
-              mode === "numeric"
-                ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-950"
-                : "border border-black/10 hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/10"
-            }`}
+          <PrimaryButton
+            type="button"
+            onClick={() => setMode('numeric')}
+            className={
+              mode === 'numeric'
+                ? ''
+                : 'bg-white/10 text-zinc-100 hover:bg-white/15'
+            }
           >
             Numérico
-          </button>
-          <button
-            onClick={() => setMode("alpha")}
-            className={`rounded-full px-4 py-2 text-sm font-medium ${
-              mode === "alpha"
-                ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-950"
-                : "border border-black/10 hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/10"
-            }`}
+          </PrimaryButton>
+          <SecondaryButton
+            type="button"
+            onClick={() => setMode('alpha')}
+            className={
+              mode === 'alpha'
+                ? 'border-amber-500/40 bg-amber-500/10'
+                : undefined
+            }
           >
             Alfabético
-          </button>
+          </SecondaryButton>
         </div>
 
-        {mode === "numeric" ? (
-          <label className="grid gap-2">
-            <span className="text-sm font-medium">Máximo (0..N)</span>
-            <input
+        {mode === 'numeric' ? (
+          <ToolField label="Máximo (0..N)">
+            <ToolInput
               type="number"
               min={0}
               value={numericMax}
               onChange={(e) => setNumericMax(Number(e.target.value))}
-              className="h-11 rounded-xl border border-black/10 bg-transparent px-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500 dark:border-white/10"
             />
-          </label>
+          </ToolField>
         ) : (
-          <label className="grid gap-2">
-            <span className="text-sm font-medium">Tamanho máximo (a..z)</span>
-            <input
+          <ToolField label="Tamanho máximo (a..z)">
+            <ToolInput
               type="number"
               min={1}
               max={5}
               value={maxAlphaLen}
               onChange={(e) => setMaxAlphaLen(Number(e.target.value))}
-              className="h-11 rounded-xl border border-black/10 bg-transparent px-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500 dark:border-white/10"
             />
-          </label>
+          </ToolField>
         )}
 
-        <button
+        <PrimaryButton
+          loading={busy}
           disabled={busy}
           onClick={run}
-          className="w-fit rounded-full bg-zinc-900 px-5 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-zinc-950"
+          className="w-fit"
         >
-          Executar
-        </button>
+          Executar (backend)
+        </PrimaryButton>
 
         {result && (
           <div className="grid gap-3">
-            <div className="text-sm text-zinc-600 dark:text-zinc-300">{result.note}</div>
-            <div className="text-sm">
-              Tentativas: <span className="font-mono">{result.tried}</span>
+            <div className="text-sm text-zinc-300">{result.note}</div>
+            <div className="text-sm text-zinc-200">
+              Tentativas (backend):{' '}
+              <span className="font-mono">{result.tried}</span>
             </div>
-            <div className="rounded-2xl border border-black/10 bg-black/5 p-4 dark:border-white/10 dark:bg-white/10">
+            <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
               {result.matches.length === 0 ? (
-                <div className="text-sm text-zinc-600 dark:text-zinc-300">Nenhuma senha encontrada dentro dos limites.</div>
+                <div className="text-sm text-zinc-300">
+                  Nenhuma senha encontrada dentro dos limites.
+                </div>
               ) : (
                 <div className="grid gap-2">
                   {result.matches.map((m) => (
                     <div key={m.hash} className="flex flex-col gap-1">
-                      <div className="font-mono text-xs text-zinc-600 dark:text-zinc-300">{m.hash}</div>
-                      <div className="text-sm font-semibold">{m.password}</div>
+                      <div className="font-mono text-xs text-zinc-400">
+                        {m.hash}
+                      </div>
+                      <div className="text-sm font-semibold text-zinc-100">
+                        {m.password}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -126,8 +184,8 @@ export default function CrackDeSenhaPage() {
           </div>
         )}
 
-        {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-200">{error}</div>}
-      </div>
+        {error && <ErrorBanner message={error} />}
+      </ToolCard>
     </div>
   );
 }
