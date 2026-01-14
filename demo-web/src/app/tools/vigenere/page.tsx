@@ -1,8 +1,10 @@
 'use client';
 
+import { AnimatePresence } from 'framer-motion';
 import { useMemo, useState } from 'react';
 
 import {
+  AnimatedResult,
   ErrorBanner,
   HowItWorks,
   PrimaryButton,
@@ -17,9 +19,12 @@ import {
 } from '@/components/tool-kit';
 import { apiPost } from '@/lib/api';
 import { toHex } from '@/lib/bytes';
+import { tools } from '@/lib/tools';
 
 type VigenereEncryptResponse = { cipherHex: string };
 type VigenereDecryptResponse = { message: string };
+
+const TOOL = tools.find((t) => t.href === '/tools/vigenere');
 
 function vigenereEncryptHexLikeBackend(
   message: string,
@@ -61,6 +66,8 @@ export default function VigenerePage() {
   const [cipherHex, setCipherHex] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const variant = mode === 'normal' ? 'beginner' : 'debug';
 
   const msgLowBytes = useMemo(() => {
     const s = message ?? '';
@@ -131,25 +138,63 @@ export default function VigenerePage() {
     <div className="grid gap-6 sm:gap-8">
       <div>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-3xl font-semibold tracking-tight">
-            Criptografia Vigenère (XOR)
-          </h1>
-          <ToolModeSwitch mode={mode} onChange={setMode} />
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/5">
+              {TOOL && <TOOL.icon className="text-amber-300" size={18} />}
+            </div>
+            <h1 className="text-3xl font-semibold tracking-tight">
+              Criptografia Vigenère (XOR)
+            </h1>
+          </div>
+          <ToolModeSwitch mode={mode} onChange={setMode} compact />
         </div>
         <p className="mt-2 text-base leading-relaxed text-zinc-300">
-          Cifra/decifra por XOR, com saída em hexadecimal.
+          {mode === 'normal'
+            ? 'Transforma uma mensagem usando uma “senha” (chave) repetida. Você consegue desfazer a transformação usando a mesma senha.'
+            : 'Cifra/decifra por XOR com chave repetida, com saída em hexadecimal.'}
         </p>
+
+        {mode === 'normal' && TOOL && (
+          <div className="mt-4 grid gap-3 rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-zinc-300">
+            <div>
+              <div className="font-semibold text-zinc-100">O que é?</div>
+              <div className="mt-1">{TOOL.beginner.what}</div>
+            </div>
+            <div>
+              <div className="font-semibold text-zinc-100">Para que serve?</div>
+              <div className="mt-1">{TOOL.beginner.why}</div>
+            </div>
+            <div>
+              <div className="font-semibold text-zinc-100">Como usar</div>
+              <div className="mt-1">{TOOL.beginner.how}</div>
+              {TOOL.beginner.note && (
+                <div className="mt-2 text-xs text-zinc-400">
+                  Obs.: {TOOL.beginner.note}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <HowItWorks
         mode={mode}
-        steps={[
-          'Converta a mensagem e a senha para bytes (UTF-8).',
-          'Repita a senha até ter o mesmo tamanho da mensagem.',
-          'Para cada posição i: cipher[i] = message[i] XOR key[i].',
-          'Mostre o resultado em hexadecimal.',
-          'Para decifrar, aplique o XOR novamente: message = cipher XOR key.',
-        ]}
+        steps={
+          mode === 'normal'
+            ? [
+                'Você escreve uma mensagem e uma senha (chave).',
+                'A ferramenta mistura cada caractere da mensagem com a senha (que vai se repetindo).',
+                'O resultado aparece em hex (um formato prático para representar bytes).',
+                'Para voltar ao texto original, use a mesma senha e clique em “Decifrar”.',
+              ]
+            : [
+                'Converta a mensagem e a senha para bytes (UTF-8).',
+                'Repita a senha até ter o mesmo tamanho da mensagem.',
+                'Para cada posição i: cipher[i] = message[i] XOR key[i].',
+                'Mostre o resultado em hexadecimal.',
+                'Para decifrar, aplique o XOR novamente: message = cipher XOR key.',
+              ]
+        }
         debugCode={`// XOR com chave repetida\nfor i in 0..n-1:\n  out[i] = msg[i] ^ key[i % keyLen]\n\n// hex\nhex = toHex(out)`}
         debugExtras={
           <div className="grid gap-3">
@@ -205,6 +250,7 @@ export default function VigenerePage() {
             <ToolInput
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              variant={variant}
             />
           </ToolField>
 
@@ -219,39 +265,51 @@ export default function VigenerePage() {
             <ToolTextarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
+              variant={variant}
             />
           </ToolField>
         </ToolGrid>
 
         <div className="flex flex-col gap-3 sm:flex-row">
-          <PrimaryButton loading={busy} disabled={busy} onClick={encrypt}>
-            Cifrar (backend)
+          <PrimaryButton
+            loading={busy}
+            disabled={busy}
+            onClick={encrypt}
+            variant={variant}
+          >
+            {mode === 'debug' ? 'Cifrar (backend)' : 'Cifrar'}
           </PrimaryButton>
           <SecondaryButton
             loading={busy}
             disabled={busy || cipherHex.trim().length === 0}
             onClick={decrypt}
+            variant={variant}
           >
-            Decifrar (backend)
+            {mode === 'debug' ? 'Decifrar (backend)' : 'Decifrar'}
           </SecondaryButton>
         </div>
 
-        <ToolField
-          label="Cipher (hex)"
-          debugInfo={
-            mode === 'debug' && cipherHex
-              ? `${cipherHex.length / 2} bytes`
-              : undefined
-          }
-        >
-          <ToolTextarea
-            value={cipherHex}
-            onChange={(e) => setCipherHex(e.target.value)}
-            className="font-mono text-xs"
-          />
-        </ToolField>
+        <AnimatedResult show={cipherHex.trim().length > 0}>
+          <ToolField
+            label="Cipher (hex)"
+            debugInfo={
+              mode === 'debug' && cipherHex
+                ? `${cipherHex.length / 2} bytes`
+                : undefined
+            }
+          >
+            <ToolTextarea
+              value={cipherHex}
+              onChange={(e) => setCipherHex(e.target.value)}
+              className="font-mono text-xs min-h-20"
+              variant={variant}
+            />
+          </ToolField>
+        </AnimatedResult>
 
-        {error && <ErrorBanner message={error} />}
+        <AnimatePresence>
+          {error && <ErrorBanner message={error} />}
+        </AnimatePresence>
       </ToolCard>
     </div>
   );

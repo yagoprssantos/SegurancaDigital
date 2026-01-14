@@ -1,8 +1,11 @@
 'use client';
 
+import { AnimatePresence } from 'framer-motion';
 import { useMemo, useState } from 'react';
 
 import {
+  AnimatedContent,
+  AnimatedResult,
   ErrorBanner,
   HowItWorks,
   PrimaryButton,
@@ -16,12 +19,15 @@ import {
 } from '@/components/tool-kit';
 import { apiPost } from '@/lib/api';
 import { fromHex } from '@/lib/bytes';
+import { tools } from '@/lib/tools';
 
 type BreakVigenereResponse = {
   key: string;
   plaintextGuess: string;
   cipherHex: string;
 };
+
+const TOOL = tools.find((t) => t.href === '/tools/quebra-vigenere');
 
 function vigenereDecryptHexLikeBackend(
   cipherHex: string,
@@ -62,6 +68,8 @@ export default function QuebraVigenerePage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<BreakVigenereResponse | null>(null);
+
+  const variant = mode === 'normal' ? 'beginner' : 'debug';
 
   async function run() {
     setBusy(true);
@@ -120,27 +128,67 @@ export default function QuebraVigenerePage() {
     <div className="grid gap-6 sm:gap-8">
       <div>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-3xl font-semibold tracking-tight">
-            Quebra Vigenère (hardcoded)
-          </h1>
-          <ToolModeSwitch mode={mode} onChange={setMode} />
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/5">
+              {TOOL && <TOOL.icon className="text-amber-300" size={18} />}
+            </div>
+            <h1 className="text-3xl font-semibold tracking-tight">
+              Quebra Vigenère (XOR)
+            </h1>
+          </div>
+          <ToolModeSwitch mode={mode} onChange={setMode} compact />
         </div>
-        <p className="mt-2 text-base leading-relaxed text-zinc-300">
-          Executa o ataque estatístico usando o criptograma hardcoded do backend
-          (como no projeto original).
-        </p>
+        <AnimatedContent mode={mode}>
+          <p className="mt-2 text-base leading-relaxed text-zinc-300">
+            {mode === 'normal'
+              ? 'Demonstra como padrões e suposições podem ajudar a adivinhar uma chave (didático).'
+              : 'Executa o ataque estatístico usando o criptograma hardcoded do backend (como no projeto original).'}
+          </p>
+
+          {mode === 'normal' && TOOL && (
+            <div className="mt-4 grid gap-3 rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-zinc-300">
+              <div>
+                <div className="font-semibold text-zinc-100">O que é?</div>
+                <div className="mt-1">{TOOL.beginner.what}</div>
+              </div>
+              <div>
+                <div className="font-semibold text-zinc-100">
+                  Para que serve?
+                </div>
+                <div className="mt-1">{TOOL.beginner.why}</div>
+              </div>
+              <div>
+                <div className="font-semibold text-zinc-100">Como usar</div>
+                <div className="mt-1">{TOOL.beginner.how}</div>
+                {TOOL.beginner.note && (
+                  <div className="mt-2 text-xs text-zinc-400">
+                    Obs.: {TOOL.beginner.note}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </AnimatedContent>
       </div>
 
       <HowItWorks
         mode={mode}
-        steps={[
-          'O backend mantém um criptograma fixo (hex).',
-          'Escolha um tamanho de chave (3..12).',
-          'Para cada posição da chave, o backend mede a frequência dos bytes naquele deslocamento.',
-          'Assume que o byte mais comum naquele deslocamento corresponde a espaço (0x20).',
-          'Então: key[pos] = mostCommonByte XOR 0x20.',
-          'Com a chave estimada, o backend decifra via XOR e retorna um plaintext de tentativa.',
-        ]}
+        steps={
+          mode === 'normal'
+            ? [
+                'Você escolhe um tamanho de chave (quantos caracteres a senha tem).',
+                'A ferramenta tenta estimar a chave usando padrões de frequência (didático).',
+                'Ela retorna uma chave estimada e um palpite de mensagem.',
+              ]
+            : [
+                'O backend mantém um criptograma fixo (hex).',
+                'Escolha um tamanho de chave (3..12).',
+                'Para cada posição da chave, o backend mede a frequência dos bytes naquele deslocamento.',
+                'Assume que o byte mais comum naquele deslocamento corresponde a espaço (0x20).',
+                'Então: key[pos] = mostCommonByte XOR 0x20.',
+                'Com a chave estimada, o backend decifra via XOR e retorna um plaintext de tentativa.',
+              ]
+        }
         debugCode={`// Backend (ideia) – para cada pos da chave\nfor pos in 0..keyLen-1:\n  freq[0..255] = 0\n  for each cipherByte at index i where (i % keyLen) == pos:\n    freq[cipherByte]++\n  mostCommon = argmax(freq)\n  key[pos] = mostCommon XOR 0x20 // supõe espaço\n\nplaintext[i] = cipher[i] XOR key[i % keyLen]`}
         debugExtras={
           result ? (
@@ -203,6 +251,7 @@ export default function QuebraVigenerePage() {
             max={12}
             value={keyLength}
             onChange={(e) => setKeyLength(Number(e.target.value))}
+            variant={variant}
           />
         </ToolField>
 
@@ -211,48 +260,64 @@ export default function QuebraVigenerePage() {
           disabled={busy}
           onClick={run}
           className="w-fit"
+          variant={variant}
         >
-          Rodar quebra (backend)
+          Executar quebra
         </PrimaryButton>
 
-        {result && (
-          <ToolGrid>
-            <ToolField label="Chave estimada">
-              <div className="rounded-2xl border border-white/10 bg-black/30 px-3 py-2 font-mono text-sm text-zinc-100">
-                {result.key}
-              </div>
-            </ToolField>
-
-            <ToolField label="Plaintext (estimativa)">
-              <div className="rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-zinc-100">
-                {result.plaintextGuess}
-              </div>
-            </ToolField>
-          </ToolGrid>
-        )}
-
-        {result && (
-          <div className="grid gap-3">
-            <ToolField label="Cipher (hex)">
-              <ToolTextarea
-                readOnly
-                value={result.cipherHex}
-                className="min-h-24 font-mono text-xs"
-              />
-            </ToolField>
-
-            {mode === 'debug' && (
-              <ToolField label="Cipher (hex) – primeiros 64 chars">
-                <div className="rounded-2xl border border-white/10 bg-black/30 px-3 py-2 font-mono text-xs text-zinc-200">
-                  {result.cipherHex.slice(0, 64)}
-                  {result.cipherHex.length > 64 ? '…' : ''}
-                </div>
+        <AnimatedResult show={!!result}>
+          {result && (
+            <ToolGrid>
+              <ToolField label="Chave estimada">
+                <ToolInput
+                  readOnly
+                  value={result.key}
+                  className="font-mono"
+                  variant={variant}
+                />
               </ToolField>
-            )}
-          </div>
-        )}
 
-        {error && <ErrorBanner message={error} />}
+              <ToolField label="Plaintext (estimativa)">
+                <ToolTextarea
+                  readOnly
+                  value={result.plaintextGuess}
+                  className="min-h-20 resize-none"
+                  variant={variant}
+                />
+              </ToolField>
+            </ToolGrid>
+          )}
+
+          {result && (
+            <div className="grid gap-3">
+              <ToolField label="Cipher (hex)">
+                <ToolTextarea
+                  readOnly
+                  value={result.cipherHex}
+                  className="min-h-20 font-mono text-xs"
+                  variant={variant}
+                />
+              </ToolField>
+
+              {mode === 'debug' && (
+                <ToolField label="Cipher (hex) – primeiros 64 chars">
+                  <ToolInput
+                    readOnly
+                    value={`${result.cipherHex.slice(0, 64)}${
+                      result.cipherHex.length > 64 ? '…' : ''
+                    }`}
+                    className="font-mono text-xs"
+                    variant={variant}
+                  />
+                </ToolField>
+              )}
+            </div>
+          )}
+        </AnimatedResult>
+
+        <AnimatePresence>
+          {error && <ErrorBanner message={error} />}
+        </AnimatePresence>
       </ToolCard>
     </div>
   );

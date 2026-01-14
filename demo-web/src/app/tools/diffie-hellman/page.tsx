@@ -1,8 +1,10 @@
 'use client';
 
+import { AnimatePresence } from 'framer-motion';
 import { useMemo, useState } from 'react';
 
 import {
+  AnimatedResult,
   ErrorBanner,
   HowItWorks,
   PrimaryButton,
@@ -16,9 +18,12 @@ import {
   usePersistentToolMode,
 } from '@/components/tool-kit';
 import { apiPost } from '@/lib/api';
+import { tools } from '@/lib/tools';
 
 type DhPublicResponse = { publicKey: string };
 type DhSharedResponse = { sharedKey: string };
+
+const TOOL = tools.find((t) => t.href === '/tools/diffie-hellman');
 
 const DH_P = BigInt('102031405123416071809152453627382938465749676859789');
 const DH_G = BigInt('1234567890123456789012345');
@@ -44,6 +49,8 @@ export default function DiffieHellmanPage() {
   const [sharedKey, setSharedKey] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const variant = mode === 'normal' ? 'beginner' : 'debug';
 
   const privBig = useMemo(() => {
     try {
@@ -114,26 +121,63 @@ export default function DiffieHellmanPage() {
     <div className="grid gap-6 sm:gap-8">
       <div>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-3xl font-semibold tracking-tight">
-            Diffie–Hellman
-          </h1>
-          <ToolModeSwitch mode={mode} onChange={setMode} />
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/5">
+              {TOOL && <TOOL.icon className="text-amber-300" size={18} />}
+            </div>
+            <h1 className="text-3xl font-semibold tracking-tight">
+              Diffie–Hellman
+            </h1>
+          </div>
+          <ToolModeSwitch mode={mode} onChange={setMode} compact />
         </div>
         <p className="mt-2 text-base leading-relaxed text-zinc-300">
-          Calcule sua chave pública e depois a chave compartilhada usando a
-          pública da outra parte.
+          {mode === 'normal'
+            ? 'Duas pessoas conseguem combinar um “segredo” pela internet sem enviar o segredo diretamente.'
+            : 'Use uma chave privada para calcular sua chave pública e depois calcule a chave compartilhada.'}
         </p>
+
+        {mode === 'normal' && TOOL && (
+          <div className="mt-4 grid gap-3 rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-zinc-300">
+            <div>
+              <div className="font-semibold text-zinc-100">O que é?</div>
+              <div className="mt-1">{TOOL.beginner.what}</div>
+            </div>
+            <div>
+              <div className="font-semibold text-zinc-100">Para que serve?</div>
+              <div className="mt-1">{TOOL.beginner.why}</div>
+            </div>
+            <div>
+              <div className="font-semibold text-zinc-100">Como usar</div>
+              <div className="mt-1">{TOOL.beginner.how}</div>
+              {TOOL.beginner.note && (
+                <div className="mt-2 text-xs text-zinc-400">
+                  Obs.: {TOOL.beginner.note}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <HowItWorks
         mode={mode}
-        steps={[
-          'Escolha uma chave privada a (inteiro).',
-          'Compute sua pública: A = g^a mod p.',
-          'Receba a pública da outra parte: B.',
-          'Compute a chave compartilhada: S = B^a mod p.',
-          'A outra parte computa S = A^b mod p — o resultado é o mesmo.',
-        ]}
+        steps={
+          mode === 'normal'
+            ? [
+                'Você escolhe um número secreto (sua “chave privada”).',
+                'A ferramenta calcula um número público (sua “chave pública”).',
+                'Você troca chaves públicas com outra pessoa.',
+                'Com isso, cada lado calcula a mesma chave compartilhada.',
+              ]
+            : [
+                'Escolha uma chave privada a (número grande).',
+                'Calcule a chave pública: A = g^a mod p.',
+                'Receba a chave pública do outro lado: B.',
+                'Calcule a chave compartilhada: S = B^a mod p.',
+                'O outro lado calcula S = A^b mod p e os dois chegam no mesmo S.',
+              ]
+        }
         debugCode={`// Modular exponentiation (fast)\nfunction powMod(base, exp, mod) {\n  result = 1\n  b = base % mod\n  while exp > 0:\n    if exp odd: result = (result*b) % mod\n    exp >>= 1\n    b = (b*b) % mod\n  return result\n}\n\npublic = powMod(g, a, p)\nshared = powMod(B, a, p)`}
         debugExtras={
           <div className="grid gap-3">
@@ -169,49 +213,65 @@ export default function DiffieHellmanPage() {
           <ToolInput
             value={privateKey}
             onChange={(e) => setPrivateKey(e.target.value)}
+            variant={variant}
           />
         </ToolField>
 
         <div className="flex flex-wrap gap-3">
-          <PrimaryButton loading={busy} disabled={busy} onClick={calcPublic}>
-            Calcular pública (backend)
+          <PrimaryButton
+            loading={busy}
+            disabled={busy}
+            onClick={calcPublic}
+            variant={variant}
+          >
+            Calcular chave pública
           </PrimaryButton>
           <SecondaryButton
             loading={busy}
             disabled={busy || otherPublicKey.trim().length === 0}
             onClick={calcShared}
+            variant={variant}
           >
-            Calcular compartilhada (backend)
+            Calcular chave compartilhada
           </SecondaryButton>
         </div>
 
-        <ToolGrid>
-          <ToolField label="Sua pública">
+        <AnimatedResult show={publicKey.trim().length > 0}>
+          <ToolGrid>
+            <ToolField label="Sua pública">
+              <ToolTextarea
+                value={publicKey}
+                readOnly
+                className="font-mono text-xs"
+                variant={variant}
+              />
+            </ToolField>
+
+            <ToolField label="Pública da outra parte">
+              <ToolTextarea
+                value={otherPublicKey}
+                onChange={(e) => setOtherPublicKey(e.target.value)}
+                className="font-mono text-xs"
+                variant={variant}
+              />
+            </ToolField>
+          </ToolGrid>
+        </AnimatedResult>
+
+        <AnimatedResult show={sharedKey.trim().length > 0}>
+          <ToolField label="Chave compartilhada">
             <ToolTextarea
-              value={publicKey}
+              value={sharedKey}
               readOnly
               className="font-mono text-xs"
+              variant={variant}
             />
           </ToolField>
+        </AnimatedResult>
 
-          <ToolField label="Pública da outra parte">
-            <ToolTextarea
-              value={otherPublicKey}
-              onChange={(e) => setOtherPublicKey(e.target.value)}
-              className="font-mono text-xs"
-            />
-          </ToolField>
-        </ToolGrid>
-
-        <ToolField label="Chave compartilhada">
-          <ToolTextarea
-            value={sharedKey}
-            readOnly
-            className="font-mono text-xs"
-          />
-        </ToolField>
-
-        {error && <ErrorBanner message={error} />}
+        <AnimatePresence>
+          {error && <ErrorBanner message={error} />}
+        </AnimatePresence>
       </ToolCard>
     </div>
   );

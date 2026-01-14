@@ -1,8 +1,11 @@
 'use client';
 
+import { AnimatePresence } from 'framer-motion';
 import { useMemo, useState } from 'react';
 
 import {
+  AnimatedContent,
+  AnimatedResult,
   ErrorBanner,
   HowItWorks,
   PrimaryButton,
@@ -15,8 +18,11 @@ import {
 } from '@/components/tool-kit';
 import { apiPost } from '@/lib/api';
 import { fromHex, toHex, utf8ToBytes } from '@/lib/bytes';
+import { tools } from '@/lib/tools';
 
 type BreakOtpResponse = { xorHex: string; cribHex: string; hint: string };
+
+const TOOL = tools.find((t) => t.href === '/tools/quebra-otp');
 
 export default function QuebraOtpPage() {
   const [mode, setMode] = usePersistentToolMode();
@@ -26,6 +32,8 @@ export default function QuebraOtpPage() {
   const [result, setResult] = useState<BreakOtpResponse | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const variant = mode === 'normal' ? 'beginner' : 'debug';
 
   const cribBytes = useMemo(() => utf8ToBytes(crib ?? ''), [crib]);
   const cribHexPreview = useMemo(() => toHex(cribBytes), [cribBytes]);
@@ -65,26 +73,67 @@ export default function QuebraOtpPage() {
     <div className="grid gap-6 sm:gap-8">
       <div>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-3xl font-semibold tracking-tight">
-            Quebra OTP reutilizado (hardcoded)
-          </h1>
-          <ToolModeSwitch mode={mode} onChange={setMode} />
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/5">
+              {TOOL && <TOOL.icon className="text-amber-300" size={18} />}
+            </div>
+            <h1 className="text-3xl font-semibold tracking-tight">
+              Quebra OTP reutilizado
+            </h1>
+          </div>
+          <ToolModeSwitch mode={mode} onChange={setMode} compact />
         </div>
-        <p className="mt-2 text-base leading-relaxed text-zinc-300">
-          Selecione 2 criptogramas hardcoded e teste um berço (crib). O backend
-          retorna XOR e o crib em hex.
-        </p>
+        <AnimatedContent mode={mode}>
+          <p className="mt-2 text-base leading-relaxed text-zinc-300">
+            {mode === 'normal'
+              ? 'Mostra o que acontece quando a OTP é reutilizada (um erro grave): dá para extrair informação combinando duas mensagens cifradas.'
+              : 'Selecione 2 criptogramas hardcoded e teste um berço (crib). O backend retorna XOR e o crib em hex.'}
+          </p>
+
+          {mode === 'normal' && TOOL && (
+            <div className="mt-4 grid gap-3 rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-zinc-300">
+              <div>
+                <div className="font-semibold text-zinc-100">O que é?</div>
+                <div className="mt-1">{TOOL.beginner.what}</div>
+              </div>
+              <div>
+                <div className="font-semibold text-zinc-100">
+                  Para que serve?
+                </div>
+                <div className="mt-1">{TOOL.beginner.why}</div>
+              </div>
+              <div>
+                <div className="font-semibold text-zinc-100">Como usar</div>
+                <div className="mt-1">{TOOL.beginner.how}</div>
+                {TOOL.beginner.note && (
+                  <div className="mt-2 text-xs text-zinc-400">
+                    Obs.: {TOOL.beginner.note}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </AnimatedContent>
       </div>
 
       <HowItWorks
         mode={mode}
-        steps={[
-          'Pegue dois criptogramas C1 e C2 que foram cifrados com a mesma OTP (erro clássico).',
-          'Compute XOR: X = C1 XOR C2 = P1 XOR P2 (o key stream cancela).',
-          "Escolha um 'crib' (pedaço provável de texto) e alinhe em uma posição.",
-          'Então você deriva um pedaço do outro plaintext: P2 = X XOR crib (ou P1, dependendo do alinhamento).',
-          'Repita mudando crib/posições até encontrar texto legível.',
-        ]}
+        steps={
+          mode === 'normal'
+            ? [
+                'Você escolhe duas mensagens cifradas que usaram a mesma OTP (isso não deveria acontecer).',
+                'Você dá um “chute” de um pedaço de texto provável (crib), por exemplo “ the ”.',
+                'A ferramenta combina as mensagens para tentar revelar pedaços do texto original.',
+                'Você repete com outros cribs até aparecer algo legível.',
+              ]
+            : [
+                'Pegue dois criptogramas C1 e C2 que foram cifrados com a mesma OTP (erro clássico).',
+                'Compute XOR: X = C1 XOR C2 = P1 XOR P2 (o key stream cancela).',
+                "Escolha um 'crib' (pedaço provável de texto) e alinhe em uma posição.",
+                'Então você deriva um pedaço do outro plaintext: P2 = X XOR crib (ou P1, dependendo do alinhamento).',
+                'Repita mudando crib/posições até encontrar texto legível.',
+              ]
+        }
         debugCode={`// Ideia central\nX = C1 XOR C2\n\n// Se você chuta que P1 contém crib em certo offset:\nP2_segment = X_segment XOR crib\n\n// No backend do demo (para os primeiros N bytes):\nderived[i] = crib[i] ^ c1[i] ^ c2[i]\n// e como xor[i] = c1[i] ^ c2[i], então:\nderived[i] = crib[i] ^ xor[i]`}
         debugExtras={
           <div className="grid gap-3">
@@ -121,6 +170,7 @@ export default function QuebraOtpPage() {
               min={0}
               value={indexA}
               onChange={(e) => setIndexA(Number(e.target.value))}
+              variant={variant}
             />
           </ToolField>
           <ToolField label="Índice B">
@@ -129,10 +179,15 @@ export default function QuebraOtpPage() {
               min={0}
               value={indexB}
               onChange={(e) => setIndexB(Number(e.target.value))}
+              variant={variant}
             />
           </ToolField>
           <ToolField label="Crib (ASCII/UTF-8)">
-            <ToolInput value={crib} onChange={(e) => setCrib(e.target.value)} />
+            <ToolInput
+              value={crib}
+              onChange={(e) => setCrib(e.target.value)}
+              variant={variant}
+            />
           </ToolField>
         </div>
 
@@ -141,31 +196,38 @@ export default function QuebraOtpPage() {
           disabled={busy}
           onClick={run}
           className="w-fit"
+          variant={variant}
         >
-          Rodar XOR + crib (backend)
+          Executar análise
         </PrimaryButton>
 
-        {result && (
-          <div className="grid gap-3">
-            <div className="text-sm text-zinc-300">{result.hint}</div>
-            <ToolField label="XOR (hex)">
-              <ToolTextarea
-                readOnly
-                value={result.xorHex}
-                className="min-h-24 font-mono text-xs"
-              />
-            </ToolField>
-            <ToolField label="Crib (hex)">
-              <ToolTextarea
-                readOnly
-                value={result.cribHex}
-                className="min-h-16 font-mono text-xs"
-              />
-            </ToolField>
-          </div>
-        )}
+        <AnimatedResult show={!!result}>
+          {result && (
+            <div className="grid gap-3">
+              <div className="text-sm text-zinc-300">{result.hint}</div>
+              <ToolField label="XOR (hex)">
+                <ToolTextarea
+                  readOnly
+                  value={result.xorHex}
+                  className="min-h-20 font-mono text-xs"
+                  variant={variant}
+                />
+              </ToolField>
+              <ToolField label="Crib (hex)">
+                <ToolTextarea
+                  readOnly
+                  value={result.cribHex}
+                  className="min-h-16 font-mono text-xs"
+                  variant={variant}
+                />
+              </ToolField>
+            </div>
+          )}
+        </AnimatedResult>
 
-        {error && <ErrorBanner message={error} />}
+        <AnimatePresence>
+          {error && <ErrorBanner message={error} />}
+        </AnimatePresence>
       </ToolCard>
     </div>
   );

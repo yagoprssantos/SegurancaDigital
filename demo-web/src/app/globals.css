@@ -44,7 +44,22 @@ body {
 
 .sd-smooth {
   transition: background-color 220ms ease, color 220ms ease,
-    box-shadow 220ms ease;
+    box-shadow 220ms ease, transform 220ms ease;
+}
+
+/* Input/textarea hover and focus effects */
+input[type='text']:focus,
+input[type='number']:focus,
+input[type='password']:focus,
+textarea:focus {
+  transform: scale(1.005);
+}
+
+input[type='text']:hover:not(:focus),
+input[type='number']:hover:not(:focus),
+input[type='password']:hover:not(:focus),
+textarea:hover:not(:focus) {
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 /* Improved responsive touch-friendly sizing */
