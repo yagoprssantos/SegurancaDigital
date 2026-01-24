@@ -1,34 +1,55 @@
 # Segurança Digital
 
-Este repositório reúne implementações, ferramentas e materiais de apoio relacionados à disciplina de Segurança Computacional/Digital. O objetivo é explorar conceitos fundamentais de criptografia, análise de cifras e segurança da informação, com exemplos práticos em Java.
+## Tabela de Conteúdos
 
-## Estrutura do Projeto
+1. [Sobre o Projeto](#sobre-o-projeto)
+2. [Requisitos](#requisitos)
+3. [Como usar as ferramentas (`src/`)](#como-usar-as-ferramentas-src)
+4. [Funcionalidades](#funcionalidades)
+5. [Estrutura do Projeto](#estrutura-do-projeto)
 
-- `docs/`
-  Materiais de apoio e referências, como slide.
-- `src/`
-  Códigos-fonte das implementações e ferramentas:
-  - `AES/`: Implementação do algoritmo de criptografia AES.
-  - `CriptografiaVigenere/`: Implementação da cifra de Vigenère.
-  - `CrackDeSenha/`: Ferramenta educacional para demonstração de verificação/ataques de senha.
-  - `DiffieHellman/`: Implementação do protocolo Diffie-Hellman para troca segura de chaves.
-  - `QuebraOTP/`: Ferramenta para análise e quebra de cifras OTP.
-  - `QuebraVigenere/`: Ferramenta para análise e quebra da cifra de Vigenère.
-  - `SHA256/`: Implementação do algoritmo de hash SHA-256 com interface gráfica.
+## Sobre o Projeto
 
-Cada subdiretório de código possui seu próprio README com instruções detalhadas de uso.
-
-## Como usar
-
-1. Navegue até o diretório de interesse em `src/`.
-2. Siga as instruções do README correspondente para compilar e executar os códigos Java.
-3. Consulte os materiais em `docs/` para aprofundar o estudo teórico.
+Coleção de implementações e ferramentas educativas para estudar criptografia, análise de cifras e mecanismos de segurança, contendo diversos módulos em Java com implementações e exercícios.
 
 ## Requisitos
 
-- Java (JDK 8 ou superior)
-- (Opcional) Visual Studio Code para edição e depuração
+- Java JDK 8+
 
-## Créditos
+Clone o repositório:
 
-Desenvolvido por **eu mesmo** ([@yagoprssantos](https://github.com/yagoprssantos)) para fins acadêmicos.
+```bash
+git clone https://github.com/yagoprssantos/seguranca-digital.git
+cd seguranca-digital
+```
+
+## Como usar as ferramentas (`src/`)
+
+O diretório `src/` contém implementações e exercícios em Java. Use [src/README.md](src/README.md) como índice rápido dos módulos e para instruções básicas de compilação. Cada módulo idealmente mantém seu próprio `README.md` com exemplos executáveis.
+
+## Funcionalidades
+
+- Implementações de algoritmos clássicos e modernos de criptografia (AES, Vigenère, SHA-256).
+- Ferramentas de análise/ataque educacional (Quebra de Vigenère, Quebra OTP, Crack de Senha).
+- Demonstração de protocolo de troca de chaves (Diffie-Hellman).
+
+## Estrutura do Projeto
+
+```
+seguranca-digital/
+├── docs/             # Materiais de apoio e referências
+└── src/              # Implementações e ferramentas em Java
+    ├── AES/
+    ├── CrackDeSenha/
+    ├── CriptografiaVigenere/
+    ├── DiffieHellman/
+    ├── QuebraOTP/
+    ├── QuebraVigenere/
+    └── SHA256/
+
+```
+
+### Módulos Principais
+
+- **src/**: Códigos-fonte das ferramentas e implementações em Java. Cada subdiretório contém seu próprio README com instruções detalhadas (ver [src/README.md](src/README.md)).
+- **docs/**: Materiais de apoio, referências e anotações relacionadas aos tópicos de segurança digital.
