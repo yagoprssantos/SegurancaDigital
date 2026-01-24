@@ -1,32 +1,52 @@
-# Códigos-fonte - Projetos por Pasta
+# Códigos-fonte — Implementações e ferramentas
 
-Este diretório contém os códigos-fonte das implementações e ferramentas desenvolvidas para o projeto de Segurança Digital. Cada subdiretório representa um módulo ou funcionalidade específica:
+Este arquivo é um índice rápido para os módulos de código em `src/`. Objetivos:
 
-## Estrutura dos diretórios
+- Resumir o propósito de cada módulo;
+- Informar pré-requisitos e um passo-a-passo mínimo para compilar/executar;
+- Apontar para o README de cada módulo quando houver detalhes ou exemplos.
 
-- `AES/`
-  Implementação do algoritmo de criptografia AES (Advanced Encryption Standard), incluindo código-fonte e documentação.
-- `CriptografiaVigenere/`
-  Implementação do algoritmo de criptografia de Vigenère, incluindo código-fonte, binários compilados e documentação.
-- `DiffieHellman/`
-  Implementação do protocolo Diffie-Hellman para troca segura de chaves criptográficas entre duas partes.
-- `CrackDeSenha/`
-  Ferramenta educacional para demonstração de verificação/ataques de senha e técnicas de proteção.
-- `QuebraOTP/`
-  Ferramenta para análise e quebra de cifras do tipo OTP (One-Time Pad), com código-fonte e documentação.
-- `QuebraVigenere/`
-  Ferramenta para análise e quebra da cifra de Vigenère, com código-fonte e documentação.
-- `SHA256/`
-  Implementação do algoritmo de hash SHA-256 com interface gráfica, incluindo código-fonte e documentação.
+## Pré-requisitos
 
-Cada subdiretório possui seu próprio README detalhando o funcionamento, uso e exemplos de execução dos respectivos módulos.
+- Java JDK 8+ (com `JAVA_HOME` configurado)
+- (Opcional) IDE/Editor: IntelliJ, Eclipse, VSCode
 
-## Como compilar e executar
+> Observação: para a demo full-stack, verifique os READMEs `demo-backend/README.md` e `demo-web/README.md` na raiz.
 
-Acesse o diretório de cada módulo e siga as instruções do respectivo README para compilar e executar os códigos Java.
+## Compilar & executar — guia rápido
 
-## Observações
+1. Abra um terminal na pasta do módulo (ex: `src/AES`).
+2. Se existir `README.md` no módulo, siga aquele arquivo.
+3. Exemplo genérico de compilação via terminal:
 
-- Os diretórios `bin/` armazenam os arquivos compilados (`.class`).
-- Os diretórios `lib/` podem ser utilizados para dependências externas, se necessário.
-- Os arquivos de configuração do VSCode estão em `.vscode/`.
+```bash
+# dentro de src/<Modulo>/
+mkdir -p bin
+javac -d bin $(find . -name "*.java")
+```
+
+No Windows PowerShell substitua o `find` por um wildcard (`Get-ChildItem -Recurse -Filter *.java`) ou use sua IDE.
+
+Exemplo genérico de execução:
+
+```bash
+java -cp bin NomeDaClassePrincipal
+```
+
+Quando o módulo trouxer `pom.xml` ou scripts, use Maven/Gradle/IDE conforme indicado.
+
+## Módulos disponíveis
+
+- `AES/` — Implementação didática do AES.
+- `CriptografiaVigenere/` — Cifra de Vigenère e exemplos.
+- `DiffieHellman/` — Exemplo de troca de chaves Diffie-Hellman.
+- `CrackDeSenha/` — Demonstração/experimentos de ataques de senha (uso educacional).
+- `QuebraOTP/` — Dados e utilitários para estudos de OTP.
+- `QuebraVigenere/` — Ferramentas para análise e quebra de Vigenère.
+- `SHA256/` — Implementação e visualização do SHA-256.
+
+Cada pasta idealmente contém um `README.md` com instruções específicas e exemplos de execução.
+
+---
+
+Para informações gerais sobre a demo e execução local, consulte o README principal: [../README.md](../README.md).
